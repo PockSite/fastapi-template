@@ -1,46 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.dependencies import get_user_service
-from app.schemas.user import RegisterUserRequest
+from app.schemas.user import UserRequest, UserResponse
 from app.service.user_service import UserService
-
-from fastapi.security import OAuth2PasswordBearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 router = APIRouter()
 
-@router.get("/")
+
+@router.get("/", response_model=list[UserResponse])
 def get_users(service: UserService = Depends(get_user_service)):
     return service.get_all_users()
 
-@router.get("/me")
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    service: UserService = Depends(get_user_service)
-):
-    try:
-        return service.get_current_user(token)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(data: RegisterUserRequest, 
-             service: UserService = Depends(get_user_service),
-             token: str = Depends(oauth2_scheme)):
-    try:
-        return service.register_user(data.id, data.email, data.name, token)
+@router.get("/{user_id}", response_model=UserResponse)
+def get_user(user_id: int, service: UserService = Depends(get_user_service)):
+    user = service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
 
-    except ValueError as e:
-        print(f"Error during registration: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(data: UserRequest, service: UserService = Depends(get_user_service)):
+    return service.create_user(name=data.name, email=data.email)
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+def update_user(user_id: int, data: UserRequest, service: UserService = Depends(get_user_service)):
+    user = service.update_user(user_id=user_id, name=data.name, email=data.email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: int, service: UserService = Depends(get_user_service)):
+    deleted = service.delete_user(user_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

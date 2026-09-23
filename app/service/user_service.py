@@ -1,24 +1,24 @@
-from fastapi.params import Depends
-from app.repository.repository import Repository
-from app.core.security import verify_access_token
+from app.repository.users_repository import UsersRepository
+
 
 class UserService:
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: UsersRepository):
         self.repo = repo
-    
-    def register_user(self, user_id: int, email: str, name: str, token: str):
-        payload = verify_access_token(token)
-        if (payload is None) or (payload.get("sub") != "server"):
-            raise ValueError("Invalid token")
-        user_data = {'email': email, 'name': name, 'id': user_id}
-        return self.repo.create(user_data)
-    
+
     def get_all_users(self):
         return self.repo.read_all()
-    
-    def get_current_user(self, token: str):
-        payload = verify_access_token(token)
-        if payload is None:
-            raise ValueError("Invalid token")
-        user = self.repo.read_by_id(payload.get("sub"))
-        return user
+
+    def get_user_by_id(self, user_id: int):
+        return self.repo.read_by_id(user_id)
+
+    def get_user_by_email(self, email: str):
+        return self.repo.find_by_email(email)
+
+    def create_user(self, name: str, email: str):
+        return self.repo.create({"name": name, "email": email})
+
+    def update_user(self, user_id: int, name: str, email: str):
+        return self.repo.update(user_id, {"name": name, "email": email})
+
+    def delete_user(self, user_id: int):
+        return self.repo.delete(user_id)
